@@ -1,0 +1,7 @@
+This is the simple demostration of WheelTimer in C
+
+you should have gcc compiler installed to compile the project.
+
+run 'make' to compile the project
+
+run ./exe to launch the application

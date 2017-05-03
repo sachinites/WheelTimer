@@ -35,7 +35,6 @@ de_register_app_event(wheel_timer_t *wt, wheel_timer_elem_t *wt_elem){
 	if(!wt_elem) return;
 	pause_wheel_timer(wt);
 	wt_elem->is_alive = 0;
-	free(wt_elem->arg);
 	resume_wheel_timer(wt);	
 }
 
@@ -70,7 +69,8 @@ wheel_fn(void *arg){
 			wt_elem = (wheel_timer_elem_t *)head->data;
 		
 			if(wt_elem->is_alive == 0){
-				singly_ll_remove_node(slot_list, head);	
+				singly_ll_remove_node(slot_list, head);
+				free_wheel_timer_element(wt_elem);	
 				free(head);
 				head = next_node;
 				continue;

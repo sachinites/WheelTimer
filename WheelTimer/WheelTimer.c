@@ -30,6 +30,15 @@ init_wheel_timer(int wheel_size, int clock_tic_interval){
 	return wt;
 }
 
+void
+de_register_app_event(wheel_timer_t *wt, wheel_timer_elem_t *wt_elem){
+	if(!wt_elem) return;
+	pause_wheel_timer(wt);
+	wt_elem->is_alive = 0;
+	free(wt_elem->arg);
+	resume_wheel_timer(wt);	
+}
+
 
 static void*
 wheel_fn(void *arg){
@@ -58,7 +67,15 @@ wheel_fn(void *arg){
 			printf("\n");
 		for(i = 0; i < node_count; i++){
 			next_node = GET_NEXT_NODE_SINGLY_LL(head);
-			wt_elem = (wheel_timer_elem_t *)head->data;							
+			wt_elem = (wheel_timer_elem_t *)head->data;
+		
+			if(wt_elem->is_alive == 0){
+				singly_ll_remove_node(slot_list, head);	
+				free(head);
+				head = next_node;
+				continue;
+			}
+	
 			if(wt->current_cycle_no == wt_elem->execute_cycle_no){
 				wt_elem->app_callback(wt_elem->arg, wt_elem->arg_size);
 				if(wt_elem->is_recurrence){
@@ -85,7 +102,7 @@ wheel_fn(void *arg){
 	return NULL;
 }
 
-void
+wheel_timer_elem_t *
 register_app_event(wheel_timer_t *wt,
                    app_call_back call_back,
                    void *arg,
@@ -93,7 +110,7 @@ register_app_event(wheel_timer_t *wt,
                    int time_interval,
                    char is_recursive){
 
-	if(!wt || !call_back) return ;
+	if(!wt || !call_back) return NULL;
 	wheel_timer_elem_t *wt_elem = calloc(1, sizeof(wheel_timer_elem_t));
 	
 	wt_elem->time_interval = time_interval;
@@ -111,11 +128,13 @@ register_app_event(wheel_timer_t *wt,
 	int cycle_no = registration_next_abs_slot / wt->wheel_size;
 	int slot_no  = registration_next_abs_slot % wt->wheel_size;
 	wt_elem->execute_cycle_no = cycle_no;
+	wt_elem->is_alive = 1;
 	singly_ll_add_node_by_val(wt->slots[slot_no], wt_elem);
 	//printf("Wheel Timer snapshot on New Registration\n");
 	//print_wheel_timer(wt);
 
 	resume_wheel_timer(wt);
+	return wt_elem;
 }
 
 void
@@ -187,4 +206,13 @@ pause_wheel_timer(wheel_timer_t *wt){
 void
 resume_wheel_timer(wheel_timer_t *wt){
 	signal_t(wt->wheel_thread);	
+}
+
+void
+wt_elem_reschedule(wheel_timer_elem_t *wt_elem, int new_time_interval){
+	if(!wt_elem)	return;
+	if(new_time_interval <= 0)
+		return;
+
+	wt_elem->time_interval = new_time_interval;
 }

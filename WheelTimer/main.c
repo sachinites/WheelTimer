@@ -49,6 +49,10 @@ void wrapper_generate_ospf_hello(void *arg, int arg_size){
 
 void
 main_menu(wheel_timer_t *wt){
+	wheel_timer_elem_t *gq_wt_elem = NULL,
+			   *pim_hello_wt_elem = NULL,
+			   *ospf_hello_wt_elem = NULL;
+
 	do{
 		printf("\nMain Menu\n");
 		printf("*************\n");
@@ -57,10 +61,50 @@ main_menu(wheel_timer_t *wt){
 		printf("3. Register Pim Hello Event\n");
 		printf("4. Register Ospf  Hello Event\n");
 		printf("5. Reset Wheel Timer\n");
-		printf("6. Exit\n");
+		printf("6. de-Register General Query Event\n");
+		printf("7. de-Register Pim Hello Event\n");
+		printf("8. de-Register Ospf  Hello Event\n");
+		printf("9. Exit\n");
+		printf("10. Reschedule general query\n");
+		printf("11. Reschedule pim hello\n");
+		printf("12. Reschedule ospf hello\n");
+
 		int choice;
 		scanf("%d", &choice);
 		switch(choice){
+			case 10:
+				{
+					int new_time_interval = 0;
+					printf("Enter new time interval : ");
+					scanf("%d", &new_time_interval);
+					wt_elem_reschedule(gq_wt_elem, new_time_interval);
+				}
+				break;
+			case 11:
+				{
+					int new_time_interval = 0;
+					printf("Enter new time interval : ");
+					scanf("%d", &new_time_interval);
+					wt_elem_reschedule(pim_hello_wt_elem, new_time_interval);
+				}
+				break;
+			case 12:
+				{
+					int new_time_interval = 0;
+					printf("Enter new time interval : ");
+					scanf("%d", &new_time_interval);
+					wt_elem_reschedule(ospf_hello_wt_elem, new_time_interval);
+				}
+				break;
+			case 6:
+				de_register_app_event(wt, gq_wt_elem);
+				break;
+			case 7:
+				de_register_app_event(wt, pim_hello_wt_elem);
+				break;
+			case 8:
+				de_register_app_event(wt, ospf_hello_wt_elem);
+				break;
 			case 1:
 				print_wheel_timer(wt);
 				break;
@@ -75,7 +119,7 @@ main_menu(wheel_timer_t *wt){
 					int time_interval;
 					printf("time_interval ? ");
 					scanf("%d", &time_interval);
-					register_app_event(wt, wrapper_generate_general_query, 
+					gq_wt_elem = register_app_event(wt, wrapper_generate_general_query, 
 							   (void *)&vlan_no, sizeof(vlan_no), time_interval, is_recursive);
 
 				}
@@ -91,7 +135,7 @@ main_menu(wheel_timer_t *wt){
 					int time_interval;
 					printf("time_interval ? ");
 					scanf("%d", &time_interval);
-					register_app_event(wt, wrapper_generate_pim_hello, 
+					pim_hello_wt_elem = register_app_event(wt, wrapper_generate_pim_hello, 
 							   (void *)&vlan_no, sizeof(vlan_no), time_interval, is_recursive);
 
 				}
@@ -107,7 +151,7 @@ main_menu(wheel_timer_t *wt){
 					int time_interval;
 					printf("time_interval ? ");
 					scanf("%d", &time_interval);
-					register_app_event(wt, wrapper_generate_ospf_hello, 
+					ospf_hello_wt_elem = register_app_event(wt, wrapper_generate_ospf_hello, 
 							   (void *)&vlan_no, sizeof(vlan_no), time_interval, is_recursive);
 
 				}
@@ -116,7 +160,7 @@ main_menu(wheel_timer_t *wt){
 			case 5:
 				reset_wheel_timer(wt);
 				break;
-			case 6:
+			case 9:
 				exit(0);
 			default:
 				break;

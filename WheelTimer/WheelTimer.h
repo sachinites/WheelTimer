@@ -13,6 +13,8 @@ struct _wheel_timer_elem_t{
 	void *arg;
 	int arg_size;
 	char is_recurrence;
+	/* control param*/
+	char is_alive;
 };
 
 
@@ -34,7 +36,7 @@ init_wheel_timer(int wheel_size, int clock_tic_interval);
 void
 cleanup_wheel_timer(wheel_timer_t *wt);
 
-void 
+wheel_timer_elem_t * 
 register_app_event(wheel_timer_t *wt, 
 		   app_call_back call_back, 
 		   void *arg,
@@ -42,11 +44,12 @@ register_app_event(wheel_timer_t *wt,
 		   int time_interval, 
 		   char is_recursive);
 
-int
-unregister_app_event(wheel_timer_t *wt,
-		     app_call_back call_back,
-		     int time_interval);
 
+void
+de_register_app_event(wheel_timer_t *wt, wheel_timer_elem_t *wt_elem);
+
+void
+wt_elem_reschedule(wheel_timer_elem_t *wt_elem, int new_time_interval);
 
 void
 free_wheel_timer_element(wheel_timer_elem_t *wt_elem);

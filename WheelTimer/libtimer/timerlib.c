@@ -71,6 +71,11 @@ timer_callback_wrapper(union sigval arg){
 		reschedule_timer(timer, 
 			timer->exp_back_off_time *= 2, 0);	
 	}
+	else if(timer->timer_state == TIMER_RESUMED){
+		
+		reschedule_timer(timer,
+			timer->exp_timer, timer->sec_exp_timer);
+	}
 }
 
 
@@ -93,7 +98,7 @@ setup_timer(
 	timer->sec_exp_timer = sec_exp_timer;
 	timer->cb = timer_cb;
 	timer->thresdhold = threshold;
-	timer->timer_state = TIMER_INIT;
+	timer_set_state(timer, TIMER_INIT);
 	timer->exponential_backoff = exponential_backoff;
 
 	/* Sanity checks */ 
@@ -126,13 +131,19 @@ setup_timer(
 }
 
 void
-start_timer(Timer_t *timer){
+resurrect_timer(Timer_t *timer){
 
 	int rc;
 
 	rc = timer_settime(*(timer->posix_timer), 0, &timer->ts, NULL);
 	assert(rc >= 0);
-	timer->timer_state = TIMER_RUNNING;
+}
+
+void
+start_timer(Timer_t *timer){
+
+	resurrect_timer(timer);
+	timer_set_state(timer, TIMER_RUNNING);
 }
 
 void
@@ -144,14 +155,18 @@ delete_timer(Timer_t *timer){
 	free(timer->posix_timer);
 	timer->posix_timer = NULL;
 	timer->user_arg = NULL; /* User arg need to be freed by Appln */
-	timer->timer_state = TIMER_DELETED;
+	timer_set_state(timer, TIMER_DELETED);
 }
 
 void
 cancel_timer(Timer_t *timer){
 
-	if(timer->timer_state == TIMER_INIT || 
-		timer->timer_state == TIMER_DELETED) {
+	TIMER_STATE_T timer_curr_state;
+
+	timer_curr_state = timer_get_current_state(timer);
+
+	if(timer_curr_state == TIMER_INIT || 
+		timer_curr_state == TIMER_DELETED) {
 		
 		return; /*  No-Operation */
 	}
@@ -161,8 +176,8 @@ cancel_timer(Timer_t *timer){
 	timer_fill_itimerspec(&timer->ts.it_interval, 0);
 	timer->time_remaining = 0;
 	timer->invocation_counter = 0;
-	start_timer(timer);
-	timer->timer_state = TIMER_CANCELLED;
+	resurrect_timer(timer);
+	timer_set_state(timer, TIMER_CANCELLED);
 }
 
 
@@ -177,21 +192,23 @@ pause_timer(Timer_t *timer){
 	timer_fill_itimerspec(&timer->ts.it_value, 0);
 	timer_fill_itimerspec(&timer->ts.it_interval, 0);
 	
-    start_timer(timer);
-
-	timer->timer_state = TIMER_PAUSED;	
+    resurrect_timer(timer);
+	
+	timer_set_state(timer, TIMER_PAUSED);
 }
 
 
 void
 resume_timer(Timer_t *timer){
 
-	assert(timer->timer_state == TIMER_PAUSED);
+	assert(timer_get_current_state(timer) == TIMER_PAUSED);
 	
 	timer_fill_itimerspec(&timer->ts.it_value, timer->time_remaining);
 	timer_fill_itimerspec(&timer->ts.it_interval, timer->sec_exp_timer);
 	timer->time_remaining	 = 0;
-	start_timer(timer);
+
+	resurrect_timer(timer);
+	timer_set_state(timer, TIMER_RESUMED);
 }
 
 unsigned long
@@ -238,7 +255,8 @@ restart_timer(Timer_t *timer){
 	timer->invocation_counter = 0;
 	timer->time_remaining = 0;	
 	timer->exp_back_off_time = timer->exp_timer;
-	start_timer(timer);		
+	resurrect_timer(timer);
+	timer_set_state(timer, TIMER_RUNNING);
 }
 
 
@@ -248,12 +266,15 @@ reschedule_timer(Timer_t *timer,
 				 unsigned long sec_exp_ti){
 
 	uint32_t invocation_counter;
+	TIMER_STATE_T timer_state;
 
-	if(timer->timer_state == TIMER_DELETED) assert(0);
+	timer_state = timer_get_current_state(timer);
+
+	if(timer_state == TIMER_DELETED) assert(0);
 	
 	invocation_counter = timer->invocation_counter;
 
-	if(timer->timer_state != TIMER_CANCELLED) {
+	if(timer_state != TIMER_CANCELLED) {
 		cancel_timer(timer);
 	}
 
@@ -270,7 +291,8 @@ reschedule_timer(Timer_t *timer,
 	}
 
     timer->time_remaining = 0;
-	start_timer(timer);
+	resurrect_timer(timer);
+	timer_set_state(timer, TIMER_RUNNING);
 }
 
 void

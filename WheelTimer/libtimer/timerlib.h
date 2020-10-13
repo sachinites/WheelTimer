@@ -32,6 +32,7 @@ typedef enum{
 	TIMER_DELETED,
 	TIMER_PAUSED,
 	TIMER_CANCELLED,
+	TIMER_RESUMED,
 	TIMER_RUNNING,
 } TIMER_STATE_T;
 
@@ -86,6 +87,15 @@ timer_get_current_state(Timer_t *timer){
 
 	return timer->timer_state;
 }
+
+static inline void
+timer_set_state(Timer_t *timer, TIMER_STATE_T timer_state){
+
+	timer->timer_state = timer_state;
+}
+
+void
+resurrect_timer(Timer_t *timer);
 
 void
 start_timer(Timer_t *timer);

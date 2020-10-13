@@ -7,9 +7,11 @@ app_cb(Timer_t *timer, void *user_data){
 	time_t t;
     time(&t);
     printf("%s ",ctime(&t));
-	printf("%s() invoked ... name = %s, counter = %u, Threshold = %u, next fire time = %lu\n",
+	printf("%s() invoked ... name = %s, counter = %u, Threshold = %u,"
+			" exp_time = %lu, sec_exp_time = %lu\n",
 		 __FUNCTION__, (char *)user_data, timer->invocation_counter,
-		timer->thresdhold, timespec_to_millisec(&timer->ts.it_value));
+		timer->thresdhold, timespec_to_millisec(&timer->ts.it_value),
+		timespec_to_millisec(&timer->ts.it_interval));
 }
 
 int
@@ -17,7 +19,7 @@ main(int argc, char **argv){
 
 	char *name = "Abhishek";
 
-	Timer_t *timer = setup_timer(app_cb, 1000 , 1000, 4, name, true);
+	Timer_t *timer = setup_timer(app_cb, 50 , 50, 0, name, true);
 	start_timer(timer);
 
 	printf("1. Pause Timer\n");

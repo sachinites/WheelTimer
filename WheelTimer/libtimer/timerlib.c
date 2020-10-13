@@ -23,7 +23,7 @@
 #include <errno.h>
 #include "timerlib.h"
 
-static unsigned long
+unsigned long
 timespec_to_millisec(
     struct timespec *time){
 
@@ -34,7 +34,7 @@ timespec_to_millisec(
     return milli_sec;
 }
 
-static void
+void
 timer_fill_itimerspec(struct timespec *ts,
 					  unsigned long msec) {
 
@@ -54,13 +54,23 @@ static void
 timer_callback_wrapper(union sigval arg){
 
 	Timer_t *timer = (Timer_t *)(arg.sival_ptr);
+
 	timer->invocation_counter++;
+
 	if(timer->thresdhold && 
 		(timer->invocation_counter > timer->thresdhold)){
 		cancel_timer(timer);
 		return;
 	}
+
 	(timer->cb)(timer, timer->user_arg);
+	
+	if(timer->exponential_backoff){
+
+		assert(timer->exp_back_off_time);	
+		reschedule_timer(timer, 
+			timer->exp_back_off_time *= 2, 0);	
+	}
 }
 
 
@@ -72,8 +82,8 @@ setup_timer(
     unsigned long exp_timer,         	/*  First expiration time interval in msec */
     unsigned long sec_exp_timer,        /*  Subsequent expiration time interval in msec */
 	uint32_t threshold,					/*  Max no of expirations, 0 for infinite*/
-    void *user_arg){                  	/*   Arg to timer callback */
-
+    void *user_arg,                  	/*  Arg to timer callback */
+	bool exponential_backoff){			/*  Is Timer Exp backoff*/
 
 	Timer_t *timer = calloc(1, sizeof(Timer_t));	
 	timer->posix_timer = calloc(1, sizeof(timer_t));
@@ -84,6 +94,7 @@ setup_timer(
 	timer->cb = timer_cb;
 	timer->thresdhold = threshold;
 	timer->timer_state = TIMER_INIT;
+	timer->exponential_backoff = exponential_backoff;
 
 	/* Sanity checks */ 
 	assert(timer->cb);	/* Mandatory */
@@ -102,8 +113,15 @@ setup_timer(
 	assert(rc >= 0);
 
 	timer_fill_itimerspec(&timer->ts.it_value, timer->exp_timer);
-	timer_fill_itimerspec(&timer->ts.it_interval, timer->sec_exp_timer);
 
+	if(!timer->exponential_backoff){
+		timer_fill_itimerspec(&timer->ts.it_interval, timer->sec_exp_timer);
+		timer->exp_back_off_time = 0;
+	}
+	else{
+		timer->exp_back_off_time = timespec_to_millisec(&timer->ts.it_value); 
+		timer_fill_itimerspec(&timer->ts.it_interval, 0);
+	}
 	return timer;
 }
 
@@ -141,7 +159,8 @@ cancel_timer(Timer_t *timer){
 	/* Only Paused or running timer can be cancelled */
 	timer_fill_itimerspec(&timer->ts.it_value, 0);
 	timer_fill_itimerspec(&timer->ts.it_interval, 0);
-	timer->time_remaining = 0;	
+	timer->time_remaining = 0;
+	timer->invocation_counter = 0;
 	start_timer(timer);
 	timer->timer_state = TIMER_CANCELLED;
 }
@@ -156,9 +175,7 @@ pause_timer(Timer_t *timer){
 		timer_get_time_remaining_in_mill_sec(timer);
 	
 	timer_fill_itimerspec(&timer->ts.it_value, 0);
-	
-	/* Do not reset the interval */
-	//timer_fill_itimerspec(&timer->ts.it_interval, 0);
+	timer_fill_itimerspec(&timer->ts.it_interval, 0);
 	
     start_timer(timer);
 
@@ -172,9 +189,9 @@ resume_timer(Timer_t *timer){
 	assert(timer->timer_state == TIMER_PAUSED);
 	
 	timer_fill_itimerspec(&timer->ts.it_value, timer->time_remaining);
+	timer_fill_itimerspec(&timer->ts.it_interval, timer->sec_exp_timer);
 	timer->time_remaining	 = 0;
 	start_timer(timer);
-	timer->timer_state = TIMER_RUNNING;
 }
 
 unsigned long
@@ -207,40 +224,61 @@ timer_get_time_remaining_in_mill_sec(Timer_t *timer){
 void
 restart_timer(Timer_t *timer){
 
-	if(timer->timer_state != TIMER_PAUSED ||
-		timer->timer_state != TIMER_RUNNING) {
-
-		assert(0);
-	}
+	assert(timer->timer_state != TIMER_DELETED);
 
 	cancel_timer(timer);
 
 	timer_fill_itimerspec(&timer->ts.it_value, timer->exp_timer);
+
+	if(!timer->exponential_backoff)
     timer_fill_itimerspec(&timer->ts.it_interval, timer->sec_exp_timer);
+	else
+	timer_fill_itimerspec(&timer->ts.it_interval, 0);
+
 	timer->invocation_counter = 0;
 	timer->time_remaining = 0;	
+	timer->exp_back_off_time = timer->exp_timer;
 	start_timer(timer);		
 }
 
 
-int
+void
 reschedule_timer(Timer_t *timer,
 				 unsigned long exp_ti,
 				 unsigned long sec_exp_ti){
 
+	uint32_t invocation_counter;
+
 	if(timer->timer_state == TIMER_DELETED) assert(0);
 	
+	invocation_counter = timer->invocation_counter;
+
 	if(timer->timer_state != TIMER_CANCELLED) {
 		cancel_timer(timer);
 	}
 
-	timer->exp_timer = exp_ti;
-	timer->sec_exp_timer = sec_exp_ti;
-	timer->invocation_counter = 0;
+	timer->invocation_counter = invocation_counter;
+
 	timer_fill_itimerspec(&timer->ts.it_value, exp_ti);
-    timer_fill_itimerspec(&timer->ts.it_interval, sec_exp_ti);
+
+	if(!timer->exponential_backoff){
+		timer_fill_itimerspec(&timer->ts.it_interval, sec_exp_ti);
+	}
+	else{
+		timer_fill_itimerspec(&timer->ts.it_interval, 0);
+		timer->exp_back_off_time = exp_ti;
+	}
+
     timer->time_remaining = 0;
 	start_timer(timer);
-	timer->timer_state = TIMER_RUNNING;
+}
+
+void
+print_timer(Timer_t *timer){
+
+	printf("Counter = %u, time remaining = %lu, state = %d\n",
+		timer->invocation_counter,
+		timer_get_time_remaining_in_mill_sec(timer),
+		timer_get_current_state(timer));
 }
 

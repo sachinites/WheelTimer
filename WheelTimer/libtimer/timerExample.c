@@ -189,7 +189,6 @@ timer_demo(){
 		printf("Timer Start failed, errno = %d\n", errno);
 		exit(0);
 	}
-	pause();
 }
 
 /* Returns NULL in timer creation fails, else

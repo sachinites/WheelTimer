@@ -42,8 +42,8 @@ main(int argc, char **argv){
                            1); /*1 indefinitely, 0 only once : call for wrapper_print_hello*/
 
     wt_elem = 
-        register_app_event(wt, wrapper_print_hello, "Udemy", 
-                           strlen("Udemy"), 
+        register_app_event(wt, wrapper_print_hello, "www.csepracticals.com", 
+                           strlen("www.csepracticals.com"), 
                            3,  /*wrapper_print_hello fn will be called after every 5 seconds*/
                            1); /*1 indefinitely, 0 only once : call for wrapper_print_hello*/
     /*stop the main program from gettin terminated, otherwise wheel timer

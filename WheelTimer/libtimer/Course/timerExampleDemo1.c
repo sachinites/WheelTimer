@@ -114,7 +114,7 @@ timer_demo(){
 	ts.it_value.tv_sec = 5;
 	ts.it_value.tv_nsec = 0;
 
-	ts.it_interval.tv_sec = 0;
+	ts.it_interval.tv_sec = 3;
 	ts.it_interval.tv_nsec = 0;
 
 	/* Now start the timer*/

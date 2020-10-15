@@ -183,8 +183,9 @@ cancel_timer(Timer_t *timer){
 void
 pause_timer(Timer_t *timer){
 
-	assert(timer->timer_state == TIMER_RUNNING);
-	
+	if ( timer_get_current_state(timer) == TIMER_PAUSED)
+		return;
+
 	timer->time_remaining = 
 		timer_get_time_remaining_in_mill_sec(timer);
 	

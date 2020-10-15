@@ -2,6 +2,7 @@
 #define __WHEEL_TIMER__
 
 #include <pthread.h>
+#include "timerlib.h"
 #include "gluethread/glthread.h"
 
 typedef struct _wheel_timer_elem_t wheel_timer_elem_t;
@@ -45,7 +46,7 @@ typedef struct _wheel_timer_t {
 	int clock_tic_interval;
 	int wheel_size;
 	int current_cycle_no;
-	pthread_t wheel_thread;
+	Timer_t *wheel_thread;
     slotlist_t reschd_list;
     unsigned int no_of_wt_elem;
     slotlist_t slotlist[0];

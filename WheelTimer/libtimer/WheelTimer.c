@@ -5,10 +5,7 @@
 #include <unistd.h>
 #include <time.h>
 #include <assert.h>
-
-#define TH_JOINABLE	1
-#define TH_DETACHED	0
-
+#include "timerlib.h"
 
 int
 insert_wt_elem_in_slot(void *data1, void *data2){
@@ -23,25 +20,6 @@ insert_wt_elem_in_slot(void *data1, void *data2){
        return 1;
 
    return 0;
-}
-
-wheel_timer_t*
-init_wheel_timer(int wheel_size, int clock_tic_interval){
-	wheel_timer_t *wt = calloc(1, sizeof(wheel_timer_t) + 
-				(wheel_size * sizeof(slotlist_t)));
-
-	wt->clock_tic_interval = clock_tic_interval;
-	wt->wheel_size = wheel_size;
-
-    memset(&(wt->wheel_thread), 0, sizeof(wheel_timer_t));
-
-	int i = 0;
-	for(; i < wheel_size; i++){
-        init_glthread(WT_SLOTLIST_HEAD(wt, i));
-        pthread_mutex_init(WT_SLOTLIST_MUTEX(wt, i), NULL);
-    }
-    wt->no_of_wt_elem = 0;
-	return wt;
 }
 
 static void
@@ -100,64 +78,85 @@ process_wt_reschedule_slotlist(wheel_timer_t *wt){
     WT_UNLOCK_SLOT_LIST(WT_GET_RESCHD_SLOTLIST(wt));
 }
 
-
-static void *
-wheel_fn(void *arg){
+static void
+wheel_fn(Timer_t *timer, void *arg){
 
 	wheel_timer_t *wt = (wheel_timer_t *)arg;
 	wheel_timer_elem_t *wt_elem = NULL;
 	int absolute_slot_no = 0, i =0;
-    slotlist_t *slot_list = NULL;
+	slotlist_t *slot_list = NULL;
 	glthread_t *curr;
 
-	while(1){
-        
-        wt->current_clock_tic++;
-        if(wt->current_clock_tic == wt->wheel_size){
-            wt->current_clock_tic = 0;
-            wt->current_cycle_no++;
-        }
-
-		sleep(wt->clock_tic_interval);
-
-		slot_list = WT_SLOTLIST(wt, wt->current_clock_tic);
-		absolute_slot_no = GET_WT_CURRENT_ABS_SLOT_NO(wt);
-
-		 ITERATE_GLTHREAD_BEGIN(&slot_list->slots, curr){
-
-            wt_elem = glthread_to_wt_elem(curr);
-           
-            /*Check if R == r*/
-			if(wt->current_cycle_no == wt_elem->execute_cycle_no){
-                /*Invoke the application event through fn pointer as below*/
-				wt_elem->app_callback(wt_elem->arg, wt_elem->arg_size);
-
-                /* After invocation, check if the event needs to be rescheduled again
-                 * in future*/
-				if(wt_elem->is_recurrence){
-
-                    /*relocate Or reschedule to the next slot*/
-					int next_abs_slot_no  = absolute_slot_no + 
-                            (wt_elem->time_interval/wt->clock_tic_interval);
-					int next_cycle_no     = next_abs_slot_no / wt->wheel_size;
-					int next_slot_no      = next_abs_slot_no % wt->wheel_size;
-					wt_elem->execute_cycle_no 	 = next_cycle_no;
-                    remove_glthread(&wt_elem->glue);
-					glthread_priority_insert(WT_SLOTLIST_HEAD(wt, next_slot_no), &wt_elem->glue, 
-                                    insert_wt_elem_in_slot, 
-                                    (unsigned long)&((wheel_timer_elem_t *)0)->glue);
-                    wt_elem->slotlist_head = WT_SLOTLIST(wt, next_slot_no);
-                    wt_elem->slot_no = next_slot_no;
-                    wt_elem->N_scheduled++;
-				}
-			}
-            else
-                break;
-        } ITERATE_GLTHREAD_END(slot_list, curr)
-        process_wt_reschedule_slotlist(wt);
+	wt->current_clock_tic++;
+	if(wt->current_clock_tic == wt->wheel_size){
+		wt->current_clock_tic = 0;
+		wt->current_cycle_no++;
 	}
-	return NULL;
+
+	slot_list = WT_SLOTLIST(wt, wt->current_clock_tic);
+	absolute_slot_no = GET_WT_CURRENT_ABS_SLOT_NO(wt);
+
+	ITERATE_GLTHREAD_BEGIN(&slot_list->slots, curr){
+
+		wt_elem = glthread_to_wt_elem(curr);
+
+		/*Check if R == r*/
+		if(wt->current_cycle_no == wt_elem->execute_cycle_no){
+			/*Invoke the application event through fn pointer as below*/
+			wt_elem->app_callback(wt_elem->arg, wt_elem->arg_size);
+
+			/* After invocation, check if the event needs to be rescheduled again
+			 * in future*/
+			if(wt_elem->is_recurrence){
+
+				/*relocate Or reschedule to the next slot*/
+				int next_abs_slot_no  = absolute_slot_no + 
+					(wt_elem->time_interval/wt->clock_tic_interval);
+				int next_cycle_no     = next_abs_slot_no / wt->wheel_size;
+				int next_slot_no      = next_abs_slot_no % wt->wheel_size;
+				wt_elem->execute_cycle_no 	 = next_cycle_no;
+				remove_glthread(&wt_elem->glue);
+				glthread_priority_insert(WT_SLOTLIST_HEAD(wt, next_slot_no), &wt_elem->glue, 
+						insert_wt_elem_in_slot, 
+						(unsigned long)&((wheel_timer_elem_t *)0)->glue);
+				wt_elem->slotlist_head = WT_SLOTLIST(wt, next_slot_no);
+				wt_elem->slot_no = next_slot_no;
+				wt_elem->N_scheduled++;
+			}
+		}
+		else
+			break;
+	} ITERATE_GLTHREAD_END(slot_list, curr)
+	process_wt_reschedule_slotlist(wt);
 }
+
+wheel_timer_t*
+init_wheel_timer(int wheel_size, int clock_tic_interval){
+	
+	wheel_timer_t *wt = calloc(1, sizeof(wheel_timer_t) + 
+				(wheel_size * sizeof(slotlist_t)));
+
+	wt->clock_tic_interval = clock_tic_interval;
+	wt->wheel_size = wheel_size;
+
+	wt->wheel_thread = setup_timer(wheel_fn,
+							wt->clock_tic_interval * 1000,
+							wt->clock_tic_interval * 1000,
+							0,
+							(void *)wt,
+							false);
+
+	int i = 0;
+
+	for(; i < wheel_size; i++){
+        init_glthread(WT_SLOTLIST_HEAD(wt, i));
+        pthread_mutex_init(WT_SLOTLIST_MUTEX(wt, i), NULL);
+    }
+
+    wt->no_of_wt_elem = 0;
+	return wt;
+}
+
 
 static void
 _wt_elem_reschedule(wheel_timer_t *wt, 
@@ -179,12 +178,14 @@ _wt_elem_reschedule(wheel_timer_t *wt,
         case WTELEM_DELETE:
             
                wt_elem->new_time_interval = new_time_interval;
+			   pause_timer(wt->wheel_thread);
                WT_LOCK_SLOT_LIST(WT_GET_RESCHD_SLOTLIST(wt));
                wt_elem->opcode = opcode;
                remove_glthread(&wt_elem->reschedule_glue);
                glthread_add_next(WT_GET_RESCHD_SLOTLIST_HEAD(wt), 
-                &wt_elem->reschedule_glue);
-               WT_UNLOCK_SLOT_LIST(WT_GET_RESCHD_SLOTLIST(wt));         
+               		&wt_elem->reschedule_glue);
+               WT_UNLOCK_SLOT_LIST(WT_GET_RESCHD_SLOTLIST(wt));
+ 			   resume_timer(wt->wheel_thread);
             break;
         default:
             assert(0);
@@ -300,11 +301,7 @@ print_wheel_timer(wheel_timer_t *wt){
 void
 start_wheel_timer(wheel_timer_t *wt){
 
-	if (pthread_create(&wt->wheel_thread, NULL, wheel_fn, (void*)wt))
-	{
-		printf("Wheel Timer Thread initialization failed, exiting ... \n");
-		exit(0);
-	}
+	start_timer(wt->wheel_thread);
 }
 
 void
@@ -334,5 +331,13 @@ hrs_min_sec_format(unsigned int seconds){
     memset(time_f, 0, sizeof(time_f));
     sprintf(time_f, "%u::%u::%u", hrs, min, sec);
     return time_f;
+}
+
+void
+cancel_wheel_timer(wheel_timer_t *wt){
+
+	if(wt->wheel_thread){
+		cancel_timer(wt->wheel_thread);
+	}
 }
 

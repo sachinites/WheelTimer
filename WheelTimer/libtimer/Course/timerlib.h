@@ -56,4 +56,32 @@ typedef struct Timer_{
 	TIMER_STATE_T timer_state;
 } Timer_t;
 
+Timer_t*
+setup_timer(
+    void (*timer_cb)(Timer_t*, void *), /*   Timer Callback with user data*/
+    unsigned long exp_timer,            /*   First expiration time interval in msec */
+    unsigned long sec_exp_timer,        /*   Subsequent expiration time interval in msec */
+    uint32_t threshold,                 /*   Max no of expirations, 0 for infinite*/
+    void *user_arg,                     /*   Arg to timer callback */
+    bool exponential_backoff);          /*   Is Timer Exp backoff*/
+
+
+static inline TIMER_STATE_T
+timer_get_current_state(Timer_t *timer){
+
+    return timer->timer_state;
+}
+
+static inline void
+timer_set_state(Timer_t *timer, TIMER_STATE_T timer_state){
+
+    timer->timer_state = timer_state;
+}
+
+void
+resurrect_timer(Timer_t *timer);
+
+void
+start_timer(Timer_t *timer);
+
 #endif /* __TIMER_WRAP__  */

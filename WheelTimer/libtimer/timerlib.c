@@ -134,7 +134,7 @@ void
 resurrect_timer(Timer_t *timer){
 
 	int rc;
-	rc = timer_settime(*(timer->posix_timer), 0, &timer->ts, NULL);
+	rc = timer_settime(timer->posix_timer, 0, &timer->ts, NULL);
 	assert(rc >= 0);
 }
 

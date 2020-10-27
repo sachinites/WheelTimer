@@ -84,4 +84,11 @@ resurrect_timer(Timer_t *timer);
 void
 start_timer(Timer_t *timer);
 
+/*  get remaining time in msec */
+unsigned long
+timer_get_time_remaining_in_mill_sec(Timer_t *timer);
+
+void
+delete_timer(Timer_t *timer);
+
 #endif /* __TIMER_WRAP__  */

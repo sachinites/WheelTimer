@@ -55,6 +55,7 @@ typedef struct rt_entry_{
 	uint32_t time_to_expire; /* time left to delete the entry */
     struct rt_entry_ *prev;
     struct rt_entry_ *next;
+	Timer_t *exp_timer;
 } rt_entry_t;
 
 typedef struct rt_table_{
@@ -67,7 +68,8 @@ rt_init_rt_table(rt_table_t *rt_table);
 
 bool
 rt_add_new_rt_entry(rt_table_t *rt_table,
-    char *dest_ip, char mask, char *gw_ip, char *oif);
+    char *dest_ip, char mask, char *gw_ip, char *oif,
+	void (*timer_cb)(Timer_t*, void *));
 
 bool
 rt_delete_rt_entry(rt_table_t *rt_table,
@@ -98,6 +100,7 @@ rt_entry_remove(rt_table_t *rt_table,
             rt_entry->next = 0;
             return;
         }
+		rt_table->head = NULL;
         return;
     }
     if(!rt_entry->next){
@@ -114,7 +117,7 @@ rt_entry_remove(rt_table_t *rt_table,
 
 #define ITERTAE_RT_TABLE_BEGIN(rt_table_ptr, rt_entry_ptr)                \
 {                                                                         \
-    rt_entry_t *_next_rt_entry;                                           \
+    rt_entry_t *_next_rt_entry = 0;                                       \
     for((rt_entry_ptr) = (rt_table_ptr)->head;                            \
             (rt_entry_ptr);                                               \
             (rt_entry_ptr) = _next_rt_entry) {                            \

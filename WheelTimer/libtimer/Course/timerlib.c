@@ -168,3 +168,14 @@ resume_timer(Timer_t *timer){
     resurrect_timer(timer);
     timer_set_state(timer, TIMER_RESUMED);
 }
+
+void
+delete_timer(Timer_t *timer){
+
+    int rc;
+    rc = timer_delete(timer->posix_timer);
+    assert(rc >= 0);
+    timer->user_arg = NULL; /*  User arg need to be freed by Appln */
+    timer_set_state(timer, TIMER_DELETED);
+}
+

@@ -137,4 +137,8 @@ timespec_to_millisec(
 void
 timer_fill_itimerspec(struct timespec *ts,
                       unsigned long msec);
+
+bool
+is_timer_running(Timer_t *timer);
+
 #endif /* __TIMER_WRAP__  */

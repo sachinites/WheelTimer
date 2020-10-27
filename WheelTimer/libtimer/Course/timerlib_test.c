@@ -58,7 +58,7 @@ main(int argc, char **argv){
 		case 8:
 			//print_timer(timer);
 			break;
-		deafault:	;
+		default:	;
 	}
 	}
 	pause();

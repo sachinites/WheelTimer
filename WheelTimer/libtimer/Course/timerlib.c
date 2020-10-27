@@ -55,6 +55,15 @@ timer_callback_wrapper(union sigval arg){
 
 	Timer_t *timer = (Timer_t *)(arg.sival_ptr);
 
+	
+    if((timer->timer_state) == TIMER_RESUMED){
+
+		if(timer->sec_exp_timer != 0){
+		timer->timer_state = TIMER_RUNNING;
+		}
+	}
+
+
 	/* invoke the user provided callback fn */
 	(timer->cb)(timer, timer->user_arg);
 }
@@ -120,3 +129,42 @@ start_timer(Timer_t *timer){
     timer_set_state(timer, TIMER_RUNNING);
 }
 
+unsigned long
+timer_get_time_remaining_in_mill_sec(Timer_t *timer){
+
+    struct itimerspec remaining_time;
+
+    memset(&remaining_time, 0, sizeof(struct itimerspec));
+
+    timer_gettime(timer->posix_timer, &remaining_time);
+
+    return timespec_to_millisec(&remaining_time.it_value);
+}
+
+
+void
+pause_timer(Timer_t *timer){
+
+    timer->time_remaining =
+        timer_get_time_remaining_in_mill_sec(timer);
+
+    timer_fill_itimerspec(&timer->ts.it_value, 0);
+    timer_fill_itimerspec(&timer->ts.it_interval, 0);
+
+    resurrect_timer(timer);
+
+    timer_set_state(timer, TIMER_PAUSED);
+}
+
+void
+resume_timer(Timer_t *timer){
+
+    assert(timer_get_current_state(timer) == TIMER_PAUSED);
+
+    timer_fill_itimerspec(&timer->ts.it_value, timer->time_remaining);
+    timer_fill_itimerspec(&timer->ts.it_interval, timer->sec_exp_timer);
+    timer->time_remaining    = 0;
+
+    resurrect_timer(timer);
+    timer_set_state(timer, TIMER_RESUMED);
+}

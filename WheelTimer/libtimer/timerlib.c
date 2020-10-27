@@ -302,3 +302,17 @@ print_timer(Timer_t *timer){
 		timer_get_current_state(timer));
 }
 
+bool
+is_timer_running(Timer_t *timer){
+
+	TIMER_STATE_T timer_state;
+
+	timer_state = timer_get_current_state(timer);
+
+	if(timer_state == TIMER_RUNNING ||
+		timer_state == TIMER_RESUMED) {
+		return true;
+	}
+	return false;
+}
+

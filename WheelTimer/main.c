@@ -3,7 +3,7 @@
 #include <memory.h>
 #include "WheelTimer.h"
 
-#define WHEEL_SIZE 			15
+#define WHEEL_SIZE 			60
 #define WHEEL_TIMER_CLOCK_TIC_INTERVAL  1 // sec
 
 wheel_timer_t *wt;
@@ -95,6 +95,7 @@ main_menu(wheel_timer_t *wt){
 				break;
 			case 6:
 				de_register_app_event(wt, gq_wt_elem);
+				gq_wt_elem = NULL;
 				break;
 			case 7:
 				de_register_app_event(wt, pim_hello_wt_elem);

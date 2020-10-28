@@ -1,15 +1,12 @@
-#include "WheelTimer.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <memory.h>
+#include "WheelTimer.h"
 
-
-#define MAX_NUMBER_APP_THREADS  	1
 #define WHEEL_SIZE 			15
 #define WHEEL_TIMER_CLOCK_TIC_INTERVAL  1 // sec
 
-/*Import Library global Variables*/
-extern blocked_pool_t gl_blocked_th_pool;
+wheel_timer_t *wt;
 
 void
 generate_general_query(int vlan){
@@ -77,7 +74,7 @@ main_menu(wheel_timer_t *wt){
 					int new_time_interval = 0;
 					printf("Enter new time interval : ");
 					scanf("%d", &new_time_interval);
-					wt_elem_reschedule(gq_wt_elem, new_time_interval);
+					wt_elem_reschedule(wt, gq_wt_elem, new_time_interval);
 				}
 				break;
 			case 11:
@@ -85,7 +82,7 @@ main_menu(wheel_timer_t *wt){
 					int new_time_interval = 0;
 					printf("Enter new time interval : ");
 					scanf("%d", &new_time_interval);
-					wt_elem_reschedule(pim_hello_wt_elem, new_time_interval);
+					wt_elem_reschedule(wt, pim_hello_wt_elem, new_time_interval);
 				}
 				break;
 			case 12:
@@ -93,7 +90,7 @@ main_menu(wheel_timer_t *wt){
 					int new_time_interval = 0;
 					printf("Enter new time interval : ");
 					scanf("%d", &new_time_interval);
-					wt_elem_reschedule(ospf_hello_wt_elem, new_time_interval);
+					wt_elem_reschedule(wt, ospf_hello_wt_elem, new_time_interval);
 				}
 				break;
 			case 6:
@@ -173,9 +170,7 @@ main_menu(wheel_timer_t *wt){
 int
 main(int argc, char **argv){
 
-	init_blocked_pool(&gl_blocked_th_pool, MAX_NUMBER_APP_THREADS);
-	wheel_timer_t *wt = 
-			init_wheel_timer(WHEEL_SIZE, WHEEL_TIMER_CLOCK_TIC_INTERVAL);
+	wt = init_wheel_timer(WHEEL_SIZE, WHEEL_TIMER_CLOCK_TIC_INTERVAL);
 	start_wheel_timer(wt);
 
 	/* WT thread is in DETACHED MODE, so below call is useless*/

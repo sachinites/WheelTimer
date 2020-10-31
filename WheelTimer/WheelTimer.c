@@ -204,8 +204,7 @@ register_app_event(wheel_timer_t *wt,
 	wheel_timer_elem_t *wt_elem = calloc(1, sizeof(wheel_timer_elem_t));
 	wt_elem->app_callback  = call_back;
     if(arg && arg_size){
-        wt_elem->arg 	       = calloc(1, arg_size);
-        memcpy(wt_elem->arg, arg, arg_size);
+        wt_elem->arg 	       = arg;
         wt_elem->arg_size      = arg_size;
     }
 	wt_elem->is_recurrence = is_recursive;
@@ -251,7 +250,6 @@ void
 free_wheel_timer_element(wheel_timer_elem_t *wt_elem){
     
     wt_elem->slotlist_head = NULL;
-	free(wt_elem->arg);
 	free(wt_elem);
 }
 

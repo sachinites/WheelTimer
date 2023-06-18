@@ -134,7 +134,7 @@ void
 resurrect_timer(Timer_t *timer){
 
 	int rc;
-	rc = timer_settime(timer->posix_timer, 0, &timer->ts, NULL);
+	rc = timer_settime(*(timer->posix_timer), 0, &timer->ts, NULL);
 	assert(rc >= 0);
 }
 
@@ -153,6 +153,8 @@ delete_timer(Timer_t *timer){
 	assert(rc >= 0);
 	timer->user_arg = NULL; /* User arg need to be freed by Appln */
 	timer_set_state(timer, TIMER_DELETED);
+	free (timer->posix_timer);
+	free(timer);
 }
 
 void

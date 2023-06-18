@@ -19,7 +19,7 @@ main(int argc, char **argv){
 
 	char *name = "Abhishek";
 
-	Timer_t *timer = setup_timer(app_cb, 50 , 50, 0, name, true);
+	Timer_t *timer = setup_timer(app_cb, 500 , 500, 0, name, false);
 	start_timer(timer);
 
 	printf("1. Pause Timer\n");
@@ -65,9 +65,8 @@ main(int argc, char **argv){
 		case 8:
 			print_timer(timer);
 			break;
-		deafault:	;
+		default:	;
 	}
 	}
-	pause();
 	return 0;
 }
